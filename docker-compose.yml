@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: de-postgres
+    environment:
+      POSTGRES_USER: deuser
+      POSTGRES_PASSWORD: depass
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  airflow-webserver:
+    image: apache/airflow:2.9.2
+    container_name: de-airflow-web
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://deuser:depass@postgres:5432/ecommerce
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src          # 👈 src içeri girdi
+    ports:
+      - "8080:8080"
+    command: >
+      bash -c "airflow db upgrade &&
+               airflow users create --username admin --password admin --firstname Air --lastname Flow --role Admin --email admin@example.com || true &&
+               airflow webserver"
+
+  airflow-scheduler:
+    image: apache/airflow:2.9.2
+    container_name: de-airflow-scheduler
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://deuser:depass@postgres:5432/ecommerce
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./src:/opt/airflow/src          # 👈 burada da var
+    command: >
+      bash -c "airflow db upgrade && airflow scheduler"
+
+volumes:
+  pgdata:
